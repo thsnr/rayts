@@ -1,0 +1,74 @@
+import { draw } from "./cast.js";
+import { Point } from "./graphics.js";
+
+const canvas = document.getElementById("canvas");
+const ctx = (canvas as HTMLCanvasElement).getContext("2d");
+
+let pos: Point = [0, 0];
+let angle = 0;
+let input = {w: false, a: false, s: false, d: false};
+let last: DOMHighResTimeStamp = 0;
+
+window.addEventListener("keydown", (event) => {
+    switch (event.key) {
+        case "w":
+            input.w = true;
+            break;
+        case "a":
+            input.a = true;
+            break;
+        case "s":
+            input.s = true;
+            break;
+        case "d":
+            input.d = true;
+            break;
+    }
+});
+
+window.addEventListener("keyup", (event) => {
+    switch (event.key) {
+        case "w":
+            input.w = false;
+            break;
+        case "a":
+            input.a = false;
+            break;
+        case "s":
+            input.s = false;
+            break;
+        case "d":
+            input.d = false;
+            break;
+        case "f":
+            console.log(pos, angle);
+            break;
+    }
+});
+
+function frame(time: DOMHighResTimeStamp): void {
+    const fbuf = ctx.createImageData(ctx.canvas.width, ctx.canvas.height);
+
+    const delta = time - last;
+    last = time;
+
+    if (input.a) {
+        angle -= delta / 500;
+    } else if (input.d) {
+        angle += delta / 500;
+    }
+
+    if (input.w) {
+        pos[0] += 0.1 * Math.cos(angle);
+        pos[1] += 0.1 * Math.sin(angle);
+    } else if (input.s) {
+        pos[0] -= 0.1 * Math.cos(angle);
+        pos[1] -= 0.1 * Math.sin(angle);
+    }
+
+    draw(fbuf, pos, angle);
+
+    ctx.putImageData(fbuf, 0, 0);
+    window.requestAnimationFrame(frame)
+}
+window.requestAnimationFrame(frame)

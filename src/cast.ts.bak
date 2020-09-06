@@ -1,0 +1,81 @@
+import * as graphics from "./graphics.js";
+
+/** Draws a wall segment in the framebuffer column with distance z. */
+function segment(fbuf: ImageData, column: number, distance: number): void {
+    const height = Math.floor(fbuf.height / (1 + distance));
+    const top = Math.floor((fbuf.height - height) / 2);
+    for (let i = 0; i < height; i += 1) {
+        graphics.pixel(fbuf, [column, top + i]);
+    }
+}
+
+/**
+ * Casts a ray from world-coordinate p at angle radians and returns distance to
+ * nearest wall or Infinity if nothing was hit before max was reached.
+ */
+function cast(p: graphics.Point, angle: number, max: number): number {
+    // FIXME: Do not need to be recomputed for each recursion step.
+    const sin = Math.sin(angle);
+    const cos = Math.cos(angle);
+    const tan = cos !== 0 ? sin / cos : Infinity; // Slope along the x-axis.
+    const cot = sin !== 0 ? cos / sin : Infinity; // Slope along the y-axis.
+
+    // Find the next gridlines along the x and y-axis.
+    const nx = (cos > 0 ? p[0] + 1 : p[0] - 1) | 0;
+    const ny = (sin > 0 ? p[1] + 1 : p[1] - 1) | 0;
+
+    // Determine which gridline is closer.
+    const stepx = {dx: nx - p[0], dy: 0, lensq: 0, len: 0};
+    stepx.dy = stepx.dx * tan;
+    stepx.lensq = stepx.dx*stepx.dx + stepx.dy*stepx.dy;
+
+    const stepy = {dy: ny - p[1], dx: 0, lensq: 0, len: 0};
+    stepy.dx = stepy.dy * cot;
+    stepy.lensq = stepy.dx*stepy.dx + stepy.dy*stepy.dy;
+
+    const step = stepx.lensq < stepy.lensq ? stepx : stepy;
+    step.len = Math.sqrt(step.lensq);
+
+    // Calculate next world-coordinate to check for walls.
+    const cell = [p[0] | 0, p[1] | 0];
+    if (p[0] + step.dx === nx) { // XXX: does this work with rounding errors?
+        cell[0] += step.dx > 0 ? 1 : -1;
+    }
+    if (p[1] + step.dy === ny) { // XXX: does this work with rounding errors?
+        cell[1] += step.dy > 0 ? 1 : -1;
+    }
+
+    // if (world.hasWall(cell)) { return step.len; }
+    if (cell[0] === 2 && cell[1] === 2) {
+        return step.len;
+    }
+    if (cell[0] > 5 || cell[0] < -5 || cell[1] > 5 || cell[1] < -5) {
+        return step.len;
+    }
+
+    if (step.len < max) {
+        return step.len + cast([p[0] + step.dx, p[1] + step.dy], angle, max - step.len);
+    }
+    return Infinity;
+}
+
+/**
+ * Draws the world by casting rays for each framebuffer column and drawing
+ * wall segments with height proportional to their distance.
+ */
+export function draw(fbuf: ImageData, p: graphics.Point, angle: number): void {
+    const fov = 1;
+    const step = 2*fov / fbuf.width;
+
+    for (let column = 0; column < fbuf.width; column += 1) {
+        const ray = angle - fov + column * step;
+        const z = cast(p, ray, 24);
+        if (z !== Infinity) {
+            const cos = Math.cos(angle -ray);
+            segment(fbuf, column, z * cos);
+        }
+
+        const len = z !== Infinity ? 5 * z : 100;
+        graphics.linePolar(fbuf, [400, 100], -2.59 + column * step, len, graphics.colorRGBA(0xaa, 0xaa, 0xff));
+    }
+}

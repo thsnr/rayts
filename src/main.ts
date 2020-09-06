@@ -1,3 +1,4 @@
+import * as cast from "./cast.js";
 import * as draw from "./draw.js";
 
 const canvas = document.getElementById("canvas");
@@ -20,6 +21,8 @@ function frame(time: DOMHighResTimeStamp): void {
     for (let angle = 0; angle < 2*Math.PI; angle += 0.5) {
         draw.line(fbuf, [fbuf.width >> 1, fbuf.height >> 1], angle, 200);
     }
+
+    cast.render(fbuf, {x: 0, y: 0}, 0);
 
     ctx.putImageData(fbuf, 0, 0);
     window.requestAnimationFrame(frame)
